@@ -1,11 +1,8 @@
-#include <msp430.h> 
+#include <msp430.h>
 
-// INCREMENT THIS FOR EACH TUFF:
-// LowerTUFF: 0x01,0x02,0x04,0x08,0x10,0x20.
-// UpperTUFF: 0x41,0x42,0x44,0x48,0x50,0x60
-#pragma DATA_SECTION(my_address, ".infoD")
-#pragma RETAIN(my_address)
-const unsigned char my_address = 0x01;
+//#pragma DATA_SECTION(my_address, ".infoD")
+//#pragma RETAIN(my_address)
+//const unsigned char my_address = 0x42;
 
 /*
  * Primary TUFF code.
@@ -33,9 +30,9 @@ const unsigned char my_address = 0x01;
  * We'll try dealing with reprogramming defaults later.
  */
 
-// InfoB contains the default switch values to be loaded into the capacitor.
-#pragma DATA_SECTION(switch_defaults, ".infoB")
-const unsigned char switch_defaults[3] = { 0x00, 0x00, 0x00 };
+// screw it, force the damn thing
+const unsigned char *const switch_defaults = (const unsigned char *) 0x1080;
+
 // switch_values contains the current values loaded into the capacitor.
 #pragma NOINIT(switch_values)
 unsigned char switch_values[3];
@@ -107,7 +104,7 @@ const unsigned char p2out_default = BIT6 | BIT7;
 
 // WORLD'S MOST INSANE CAST
 // CCS somehow can't tell that my_address might change from build to build.
-volatile const unsigned char *const addr_ptr = &my_address;
+volatile const unsigned char *const addr_ptr = (const unsigned char *) 0x1000;
 
 void update_switch(unsigned int sw, unsigned char val);
 void reset_switches();
@@ -160,12 +157,14 @@ void test_sequence() {
 	P1REN |= BIT7;
 	delay_sec();
 	for (i=0x1;i != 0x40;i=i<<1) {
-		if (my_address & i) {
+		unsigned char tmp;
+		tmp = *addr_ptr;
+		if (tmp & i) {
 			P1OUT &= ~BIT7;
 			P1DIR |= BIT7;
 		}
 		delay_sec();
-		if (my_address & i) {
+		if (tmp & i) {
 			P1DIR &= ~BIT7;
 			P1OUT |= BIT7;
 		}
@@ -236,10 +235,19 @@ int main(void) {
     			} else if (cmd & 0x8000) {
     				// ignore
     			} else {
+    				unsigned char tmp;
+    				// Pluck the address byte.
         			address = (cmd & 0xFF00) >> 8;
+        			// Pluck the command byte.
         			cmd = cmd & 0xFF;
+        			// Grab the address portion of the address byte (the least significant 7 bits)
     				address = address & 0x7F;
-    				if (address & *addr_ptr) {
+    				// Grab our address pointer (dumbass CCS)
+    				tmp = *addr_ptr;
+    				// And the address with our address.
+    				address &= tmp;
+    				// If they're equivalent, that means we're included in this command.
+    				if (address == tmp) {
     					unsigned char channel;
 						unsigned char setting;
 
