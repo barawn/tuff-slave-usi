@@ -1,8 +1,15 @@
 #include <msp430.h>
 
-//#pragma DATA_SECTION(my_address, ".infoD")
-//#pragma RETAIN(my_address)
-//const unsigned char my_address = 0x42;
+// These declarations program the address and default switch values.
+// For *initial* programming, uncomment these. For *subsequent* programming, comment these.
+/*
+#pragma DATA_SECTION(my_address, ".infoD")
+#pragma RETAIN(my_address)
+const unsigned char my_address = 0x01;
+#pragma DATA_SECTION(my_switch_values, ".infoB")
+#pragma RETAIN(my_switch_values)
+const unsigned char my_switch_values[3] = { 16, 21, 13 };
+*/
 
 /*
  * Primary TUFF code.
@@ -244,8 +251,8 @@ int main(void) {
     				address = address & 0x7F;
     				// Grab our address pointer (dumbass CCS)
     				tmp = *addr_ptr;
-    				// And the address with our address.
-    				address &= tmp;
+    				// And the address with our address, tacking on the TUFF select bit so we check that too.
+    				address &= (tmp | 0x40);
     				// If they're equivalent, that means we're included in this command.
     				if (address == tmp) {
     					unsigned char channel;
